@@ -1,0 +1,41 @@
+name: Monthly vacancy refresh
+
+on:
+  schedule:
+    # 06:17 UTC on the 2nd of every month. Odd minute on purpose:
+    # on-the-hour slots are congested on GitHub's schedulers and get
+    # delayed or occasionally skipped.
+    - cron: "17 6 2 * *"
+  workflow_dispatch: {}   # allows manual runs from the Actions tab
+
+jobs:
+  scrape-classify-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # full polite run is ~20-25 min; headroom for retries
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scraper.py
+
+      - name: Save scraped CSV as run artifact (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vacancies-${{ github.run_id }}
+          path: vacancies.csv
+          if-no-files-found: ignore
+          retention-days: 30
