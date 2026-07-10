@@ -1,126 +1,129 @@
-# five-pillars-taxonomy
+# Five Pillars Digital Health Vacancy Tracker
 
-A keyword-to-pillar classification taxonomy for digital health job roles,
-built around the **Five Pillars of Digital Health** framework:
+**Live at [fivepillarsvacancytracker.ufuomao.com](https://fivepillarsvacancytracker.ufuomao.com)**
 
-| Pillar | Focus |
-|---|---|
-| Foundation | Infrastructure — connectivity, hardware, digital maturity |
-| Lifeblood | Data — information flow, standards, governance |
-| Compass | Leadership & digital strategy |
-| Bedside | Clinical practice & informatics |
-| Future | Education & training |
+The first tool to turn scattered, inconsistently-titled NHS digital health
+job postings into one organised view of the market. Open vacancies from
+public NHS listings are classified against the
+[Five Pillars of Digital Health](https://www.ufuomao.com/five-pillars-in-digital-health)
+framework — **Foundation** (infrastructure), **Lifeblood** (data),
+**Compass** (leadership & strategy), **Bedside** (clinical practice &
+informatics), **Future** (education & training) — and presented as a
+searchable, filterable public dashboard, refreshed monthly.
 
-The Five Pillars framework was created by [Ufuoma Okpeahior](https://ufuomao.com).
-This package is the standalone, versioned implementation of the
-classification logic — job title and description in, pillar label out.
+Built and maintained by [Ufuoma Okpeahior](https://ufuomao.com), creator
+of the Five Pillars framework.
 
-It powers the [Five Pillars Digital Health Vacancy Tracker](https://fivepillars.ufuomao.com),
-but is designed to be usable independently of that project by anyone
-working with NHS or wider digital health workforce data.
+## How it works
 
-## Why a separate package
+```
+jobs.nhs.uk public search
+        │  scraper.py — respectful scraping: metadata only,
+        │  low frequency, retries, ~20s between requests
+        ▼
+five-pillars-taxonomy          ◄── separate open-source package:
+        │  keyword-to-pillar        github.com/ufuomaok/five-pillars-taxonomy
+        │  classification
+        ▼
+Supabase (Postgres)
+        │  public read-only REST API
+        │  (row-level security: anonymous users can only read)
+        ▼
+index.html — static dashboard
+        Three.js hero (pillar heights = live vacancy counts)
+        + searchable/filterable vacancy table
+```
 
-Job titles across NHS digital health roles are wildly inconsistent —
-"Clinical Informatics Officer" and "EPR Trainer" describe closely related
-work but share almost no vocabulary. Reliably grouping roles like these
-under a shared pillar requires a maintained, documented mapping, not a
-one-off script. Keeping that mapping in its own versioned package means:
+- **`scraper.py`** — fetches structured vacancy metadata (title, employer,
+  location, salary, dates, contract type) from jobs.nhs.uk search results
+  across a fixed set of digital health search terms, deduplicates by job
+  reference, classifies each title by pillar, and upserts into Supabase.
+  Jobs are never duplicated across runs: re-scraping refreshes a
+  vacancy's `last_seen` while preserving its original `first_seen`.
+- **`upload_csv.py`** — utility to upload a previously scraped
+  `vacancies.csv` without re-scraping.
+- **`index.html`** — the whole frontend in one static file: an
+  interactive Three.js visualisation of the five pillars (column heights
+  driven by live vacancy counts, click to filter) above a standard,
+  accessible HTML dashboard. Queries Supabase directly with a public
+  read-only key; no backend server.
 
-- it can be tested and regression-checked independently of any scraper
-- it can be reused by anyone else working with digital health job data
-- changes to the taxonomy are visible in git history, not buried in
-  application code
+## Design decisions
 
-## Install
+**Metadata only, link out for everything else.** The tracker stores and
+displays only structured listing metadata and links every role to its
+original advert on the official NHS Jobs service, where applications are
+made. Full advert text is never copied or republished.
+
+**Respectful scraping.** Monthly refresh frequency, ~20 seconds between
+requests, retry-with-backoff rather than hammering on failure, and an
+honest user agent identifying the project.
+
+**Unclassified means unclassified.** Roles that can't be confidently
+assigned to a pillar are excluded from the dashboard rather than
+force-fitted. NHS Jobs' search is deliberately fuzzy (a search for
+"clinical systems" returns systemic psychotherapy roles), so the
+classifier doubles as the quality filter — around half of raw scraped
+results are correctly rejected this way.
+
+**The taxonomy is a separate, reusable package.** All classification
+logic and the keyword-to-pillar mapping live in
+[`five-pillars-taxonomy`](https://github.com/ufuomaok/five-pillars-taxonomy)
+— versioned, tested (90+ regression cases), and usable by anyone working
+with digital health workforce data, independently of this tracker. Every
+stored vacancy records the taxonomy version that classified it.
+
+## Coverage & known limitations
+
+- Source is the public NHS Jobs search (jobs.nhs.uk) only. Roles
+  advertised solely on other platforms, or posted and closed between
+  monthly refreshes, will be missed.
+- Discovery uses a fixed set of search keywords; unusual role titles
+  outside that vocabulary may not be found.
+- Classification is keyword-based and imperfect by design; genuinely
+  ambiguous titles are excluded rather than guessed.
+
+These limitations are also stated on the site itself.
+
+## Running it yourself
+
+Requires Python 3.9+ and a Supabase project with a `vacancies` table
+(schema in `docs/schema.sql` if present, or see the table definition in
+project history).
 
 ```bash
-pip install five-pillars-taxonomy
+git clone https://github.com/ufuomaok/five-pillars-tracker
+cd five-pillars-tracker
+python -m venv venv
+venv\Scripts\Activate.ps1        # Windows (source venv/bin/activate on Mac/Linux)
+pip install -r requirements.txt
 ```
 
-(Not yet published to PyPI — for now, install from source: see
-Development below.)
+Create `supabase_config.json` (never committed — see `.gitignore`):
 
-## Usage
-
-```python
-from five_pillars_taxonomy import PillarClassifier
-
-classifier = PillarClassifier()
-
-result = classifier.classify("EPR Trainer")
-print(result.primary_pillar)     # "bedside"
-print(result.secondary_pillar)   # None
-print(result.confidence)         # "high"
-print(result.scores)             # {'foundation': 0.0, 'lifeblood': 0.0, ...}
+```json
+{
+  "url": "https://YOUR-PROJECT.supabase.co",
+  "service_key": "YOUR-SECRET-KEY"
+}
 ```
 
-You can pass a job description alongside the title for a stronger signal:
-
-```python
-result = classifier.classify(
-    title="Digital Officer",
-    description="Supporting rollout of the trust's EPR and clinical systems",
-)
-```
-
-Run `python examples/classify_example.py` for a few more worked examples.
-
-## How classification works
-
-Matching is **weighted keyword matching**, not machine learning. This is
-deliberate: every classification is explainable — you can always point to
-the exact keyword(s) that produced a label — and the taxonomy can be
-extended by anyone editing a YAML file, without touching code.
-
-- Each pillar in `taxonomy.yaml` has a list of keywords with weights.
-- Title matches count 3x more than description matches.
-- A pillar can have `exclude` terms that discount its score when a
-  competing, more specific term is present.
-- If no pillar clears the minimum score, the result is `"unclassified"`
-  rather than a forced best guess.
-- If two pillars score closely, both are returned (`primary_pillar` +
-  `secondary_pillar`) — many digital health roles genuinely span two
-  pillars, and collapsing that to a single label would lose information.
-
-## Known limitations (v0.1.0)
-
-This is a first-pass taxonomy, seeded from national NHS digital workforce
-terminology (the DDaT profession framework, the National Competency
-Framework for Data Professionals, and common NHS digital job titles) —
-not yet validated against a large sample of real postings. Expect to see:
-
-- generic titles ("Digital Officer", "Systems Support") that need more
-  context (description text, directorate) to classify confidently
-- keyword coverage gaps for newer or less common role titles
-- weights that haven't been tuned against real-world classification
-  accuracy — they encode reasonable starting assumptions, not measured
-  precision/recall
-
-See `tests/fixtures/sample_titles.csv` for the current set of validated
-test cases, and `CHANGELOG.md` for how the taxonomy evolves over time.
-
-## Development
+Then:
 
 ```bash
-git clone https://github.com/REPLACE_WITH_YOUR_USERNAME/five-pillars-taxonomy
-cd five-pillars-taxonomy
-pip install -e ".[dev]"
-pytest
+python scraper.py
 ```
 
-To extend the taxonomy, edit `five_pillars_taxonomy/taxonomy.yaml`, add a
-test case to `tests/fixtures/sample_titles.csv`, run `pytest`, and bump
-the version in both `taxonomy.yaml` and `CHANGELOG.md`.
-
-## License
-
-MIT — see `LICENSE`. Free to reuse, including commercially, with
-attribution.
+The frontend needs no build step: edit the `SUPABASE_URL` constant in
+`index.html` and upload the file to any static host.
 
 ## Disclaimer
 
-This package classifies publicly available job title and description
-text. It is an independent project and is not affiliated with, endorsed
-by, or produced in partnership with NHS England, NHS Business Services
-Authority, or any NHS organisation.
+This is an independent project. It is not affiliated with, endorsed by,
+or produced in partnership with the NHS, NHS England, NHS Business
+Services Authority, or any NHS organisation. All vacancy data is drawn
+from publicly available job listings.
+
+## License
+
+MIT — see `LICENSE`.
