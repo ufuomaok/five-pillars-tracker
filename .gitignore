@@ -1,0 +1,23 @@
+# Secrets — never commit
+supabase_config.json
+
+# Scraped data output
+vacancies.csv
+unclassified.txt
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

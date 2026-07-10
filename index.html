@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five Pillars Digital Health Vacancy Tracker</title>
+<meta name="description" content="Live NHS digital health vacancies, organised by the Five Pillars of Digital Health framework: Foundation, Lifeblood, Compass, Bedside, Future.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root {
+    --ink: #0a0e12;
+    --panel: #10161d;
+    --panel-2: #151d26;
+    --line: rgba(61, 197, 255, 0.14);
+    --brand: #3dc5ff;
+    --brand-dim: rgba(61, 197, 255, 0.55);
+    --text: #f2f6f9;
+    --muted: #8fa3b0;
+    --font-display: "Space Grotesk", sans-serif;
+    --font-body: "Inter", sans-serif;
+    --font-data: "IBM Plex Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+  }
+  #pillars-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .hero-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 24px 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+  }
+  .hero-inner a, .hero-inner .hero-cta { pointer-events: auto; }
+  .site-mark {
+    font-family: var(--font-data);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .site-mark strong { color: var(--brand); font-weight: 500; }
+  .hero-copy { margin-top: auto; padding-bottom: 8vh; max-width: 620px; }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(34px, 5.2vw, 60px);
+    font-weight: 700;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+  }
+  h1 .accent { color: var(--brand); }
+  .hero-sub {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 52ch;
+  }
+  .hero-sub a { border-bottom: 1px solid var(--brand-dim); }
+  .hero-cta {
+    display: inline-block;
+    margin-top: 26px;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--brand);
+    padding: 12px 22px;
+    border-radius: 4px;
+  }
+  .hero-cta:hover { text-decoration: none; filter: brightness(1.1); }
+  .hero-hint {
+    margin-top: 16px;
+    font-family: var(--font-data);
+    font-size: 13.5px;
+    color: var(--text);
+    opacity: 0.85;
+    letter-spacing: 0.02em;
+    max-width: 46ch;
+  }
+  .hero-hint::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--brand);
+    border-radius: 2px;
+    margin-right: 9px;
+    vertical-align: baseline;
+  }
+
+  /* ---------- Pillar count strip ---------- */
+  .pillar-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    gap: 12px;
+    transform: translateY(-46px);
+  }
+  .pillar-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 16px 14px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    font-family: var(--font-body);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .pillar-card:hover { border-color: var(--brand-dim); transform: translateY(-2px); }
+  .pillar-card.active { border-color: var(--brand); background: var(--panel-2); }
+  .pillar-card .p-name {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 15px;
+  }
+  .pillar-card .p-count {
+    font-family: var(--font-data);
+    font-size: 26px;
+    color: var(--brand);
+    margin-top: 2px;
+  }
+  .pillar-card .p-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  /* ---------- Dashboard ---------- */
+  .dash {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 8px 24px 40px;
+  }
+  .dash-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .updated {
+    font-family: var(--font-data);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .controls input, .controls select {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 11px 12px;
+    border-radius: 5px;
+    width: 100%;
+  }
+  .controls input::placeholder { color: var(--muted); }
+  .result-meta {
+    font-family: var(--font-data);
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .result-meta button {
+    background: none;
+    border: none;
+    color: var(--brand);
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .table-wrap {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow-x: auto;
+    background: var(--panel);
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 860px; }
+  thead th {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 13px 14px;
+    border-bottom: 1px solid rgba(61, 197, 255, 0.06);
+    font-size: 14px;
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.job a { font-weight: 600; color: var(--text); }
+  td.job a:hover { color: var(--brand); }
+  td .emp { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  td.num { font-family: var(--font-data); font-size: 13px; white-space: nowrap; }
+  .pill {
+    display: inline-block;
+    font-family: var(--font-data);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    color: var(--brand);
+    border: 1px solid var(--brand-dim);
+    border-radius: 999px;
+    padding: 2px 10px;
+    white-space: nowrap;
+  }
+  .pill.secondary { color: var(--muted); border-color: var(--line); margin-left: 4px; }
+  .state {
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .state.error { color: #ff9d9d; }
+  .load-more {
+    display: block;
+    margin: 18px auto 0;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--brand);
+    font-family: var(--font-display);
+    font-size: 14px;
+    padding: 10px 26px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .load-more:hover { border-color: var(--brand); }
+  .load-more[hidden] { display: none; }
+
+  /* ---------- About / limitations ---------- */
+  .about {
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .about-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 44px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+  .about h3 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
+  .about p { color: var(--muted); font-size: 14.5px; margin-bottom: 10px; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 26px 24px 34px;
+  }
+  .foot-inner { max-width: 1200px; margin: 0 auto; }
+  .disclaimer {
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 90ch;
+    margin-bottom: 14px;
+  }
+  .foot-links { font-family: var(--font-data); font-size: 12.5px; color: var(--muted); }
+  .foot-links a { margin-right: 18px; }
+
+  @media (max-width: 900px) {
+    .pillar-strip { grid-template-columns: repeat(2, 1fr); transform: translateY(-24px); }
+    .pillar-strip .pillar-card:last-child { grid-column: 1 / -1; }
+    .controls { grid-template-columns: 1fr 1fr; }
+    .about-inner { grid-template-columns: 1fr; gap: 24px; }
+  }
+  @media (max-width: 560px) {
+    .controls { grid-template-columns: 1fr; }
+    .hero { min-height: 84vh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .pillar-card { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div id="pillars-canvas" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="site-mark"><strong>ufuomao.com</strong> / five pillars tracker</div>
+    <div class="hero-copy">
+      <h1>The NHS digital health job market, organised by <span class="accent">pillar</span>.</h1>
+      <p class="hero-sub">
+        Scattered, inconsistently-titled digital health vacancies from public NHS
+        listings, classified against the
+        <a href="https://www.ufuomao.com/five-pillars-in-digital-health" target="_blank" rel="noopener">Five Pillars of Digital Health</a>
+        framework — Foundation, Lifeblood, Compass, Bedside, Future — and refreshed monthly.
+      </p>
+      <a class="hero-cta" href="#dashboard">Browse vacancies</a>
+      <p class="hero-hint" id="hero-hint">Each pillar's height is its live vacancy count &mdash; click a pillar to filter the list.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="pillar-strip" id="pillar-strip" aria-label="Filter vacancies by pillar"></nav>
+
+<main class="dash" id="dashboard">
+  <div class="dash-head">
+    <h2>Open vacancies</h2>
+    <span class="updated" id="updated"></span>
+  </div>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search title, employer or location&hellip;" aria-label="Search vacancies">
+    <select id="filter-pillar" aria-label="Filter by pillar">
+      <option value="">All pillars</option>
+    </select>
+    <select id="filter-contract" aria-label="Filter by contract type">
+      <option value="">All contract types</option>
+    </select>
+    <select id="sort" aria-label="Sort results">
+      <option value="closing-soon">Closing soonest</option>
+      <option value="newest">Newest first</option>
+      <option value="title">Title A–Z</option>
+    </select>
+  </div>
+
+  <div class="result-meta" id="result-meta"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Pillar</th>
+          <th>Location</th>
+          <th>Salary</th>
+          <th>Closes</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="5"><div class="state" id="state">Loading live vacancy data&hellip;</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <button class="load-more" id="load-more" hidden>Show more</button>
+</main>
+
+<section class="about">
+  <div class="about-inner">
+    <div>
+      <h3>About the Five Pillars</h3>
+      <p>
+        The Five Pillars of Digital Health is an original framework by
+        Ufuoma Okpeahior describing digital health as five interdependent
+        stages: <strong style="color:var(--text)">Foundation</strong> (infrastructure),
+        <strong style="color:var(--text)">Lifeblood</strong> (data),
+        <strong style="color:var(--text)">Compass</strong> (leadership &amp; strategy),
+        <strong style="color:var(--text)">Bedside</strong> (clinical practice &amp; informatics)
+        and <strong style="color:var(--text)">Future</strong> (education &amp; training).
+      </p>
+      <p>
+        Every vacancy here is classified against that framework by an open,
+        versioned taxonomy.
+        <a href="https://www.ufuomao.com/five-pillars-in-digital-health" target="_blank" rel="noopener">Read the framework&nbsp;&rarr;</a>
+      </p>
+    </div>
+    <div>
+      <h3>Coverage &amp; known limitations</h3>
+      <p>
+        Listings are drawn from the public NHS Jobs search (jobs.nhs.uk) using a
+        fixed set of digital health search terms, refreshed monthly. This will
+        not capture every digital vacancy: roles advertised only on other
+        platforms, titled in unusual ways, or posted and closed between
+        refreshes may be missed.
+      </p>
+      <p>
+        Classification is keyword-based and imperfect by design &mdash; roles that
+        can&rsquo;t be confidently assigned to a pillar are excluded rather than
+        guessed. Always confirm details on the original advert, which each role
+        links to.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-inner">
+    <p class="disclaimer">
+      <strong>Independent project.</strong> The Five Pillars Digital Health Vacancy
+      Tracker is not affiliated with, endorsed by, or produced in partnership with
+      the NHS, NHS England, NHS Business Services Authority, or any NHS
+      organisation. All vacancy data is drawn from publicly available job
+      listings; each role links to its original advert on the official NHS Jobs
+      service, where applications are made.
+    </p>
+    <p class="foot-links">
+      <a href="https://www.ufuomao.com" target="_blank" rel="noopener">ufuomao.com</a>
+      <a href="https://www.ufuomao.com/five-pillars-in-digital-health" target="_blank" rel="noopener">the framework</a>
+      <a href="https://digitalhealthcareersmatcher.ufuomao.com" target="_blank" rel="noopener">careers matcher</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   CONFIG — the only part you need to edit.
+   Paste your Supabase project URL (Settings → Data API), e.g.
+   "https://abcdefgh.supabase.co" — no /rest/v1, no trailing slash.
+   The publishable key below is safe to expose publicly: row-level
+   security limits it to read-only access.
+   ============================================================ */
+const SUPABASE_URL = "https://ntvnasfidjpnohklsftk.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SPo9VQ70vFHrW10Azr3oyg_jA5uMVBO";
+
+const PILLARS = [
+  { id: "foundation", name: "Foundation", desc: "Infrastructure — connectivity, hardware, digital maturity" },
+  { id: "lifeblood",  name: "Lifeblood",  desc: "Data — information flow, standards, governance" },
+  { id: "compass",    name: "Compass",    desc: "Leadership & digital strategy" },
+  { id: "bedside",    name: "Bedside",    desc: "Clinical practice & informatics" },
+  { id: "future",     name: "Future",     desc: "Education & training" },
+];
+const PILLAR_NAMES = Object.fromEntries(PILLARS.map(p => [p.id, p.name]));
+
+const PAGE_SIZE = 40;
+let allRows = [];
+let visibleCount = PAGE_SIZE;
+let threeApi = null;
+
+/* ---------- Data ---------- */
+async function loadData() {
+  const stateEl = document.getElementById("state");
+  try {
+    const endpoint = SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/vacancies?select=*&pillar=neq.unclassified&limit=2000";
+    const res = await fetch(endpoint, {
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: "Bearer " + SUPABASE_PUBLISHABLE_KEY,
+      },
+    });
+    if (!res.ok) throw new Error("Data request failed (" + res.status + ")");
+    allRows = await res.json();
+    initUI();
+  } catch (err) {
+    stateEl.textContent = "The vacancy data couldn't be loaded. Refresh to try again — if it keeps happening, the data service may be briefly unavailable.";
+    stateEl.classList.add("error");
+    console.error(err);
+  }
+}
+
+function parseUkDate(text) {
+  if (!text) return null;
+  const d = new Date(text);
+  return isNaN(d) ? null : d;
+}
+
+/* ---------- UI ---------- */
+function initUI() {
+  const counts = {};
+  PILLARS.forEach(p => counts[p.id] = 0);
+  let latest = null;
+  allRows.forEach(r => {
+    if (counts[r.pillar] !== undefined) counts[r.pillar]++;
+    const seen = r.last_seen ? new Date(r.last_seen) : null;
+    if (seen && (!latest || seen > latest)) latest = seen;
+  });
+
+  // Pillar cards
+  const strip = document.getElementById("pillar-strip");
+  strip.innerHTML = "";
+  PILLARS.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "pillar-card";
+    btn.dataset.pillar = p.id;
+    btn.innerHTML =
+      '<div class="p-name">' + p.name + '</div>' +
+      '<div class="p-count">' + counts[p.id] + '</div>' +
+      '<div class="p-desc">' + p.desc + '</div>';
+    btn.addEventListener("click", () => setPillarFilter(
+      document.getElementById("filter-pillar").value === p.id ? "" : p.id
+    ));
+    strip.appendChild(btn);
+  });
+
+  // Selects
+  const pillarSel = document.getElementById("filter-pillar");
+  PILLARS.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p.id; o.textContent = p.name;
+    pillarSel.appendChild(o);
+  });
+  const contracts = [...new Set(allRows.map(r => r.contract_type).filter(Boolean))].sort();
+  const contractSel = document.getElementById("filter-contract");
+  contracts.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c; o.textContent = c;
+    contractSel.appendChild(o);
+  });
+
+  if (latest) {
+    document.getElementById("updated").textContent =
+      "data refreshed " + latest.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  ["search", "filter-pillar", "filter-contract", "sort"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => { visibleCount = PAGE_SIZE; render(); });
+  });
+  document.getElementById("load-more").addEventListener("click", () => {
+    visibleCount += PAGE_SIZE;
+    render();
+  });
+
+  initThree(counts);
+  render();
+}
+
+function setPillarFilter(pillarId) {
+  document.getElementById("filter-pillar").value = pillarId;
+  visibleCount = PAGE_SIZE;
+  render();
+  document.getElementById("dashboard").scrollIntoView({ behavior: "smooth" });
+}
+
+function currentFilters() {
+  return {
+    q: document.getElementById("search").value.trim().toLowerCase(),
+    pillar: document.getElementById("filter-pillar").value,
+    contract: document.getElementById("filter-contract").value,
+    sort: document.getElementById("sort").value,
+  };
+}
+
+function render() {
+  const f = currentFilters();
+
+  document.querySelectorAll(".pillar-card").forEach(c =>
+    c.classList.toggle("active", c.dataset.pillar === f.pillar && f.pillar !== ""));
+  if (threeApi) threeApi.setActive(f.pillar);
+
+  let rows = allRows.filter(r => {
+    if (f.pillar && r.pillar !== f.pillar) return false;
+    if (f.contract && r.contract_type !== f.contract) return false;
+    if (f.q) {
+      const hay = ((r.title || "") + " " + (r.employer || "") + " " + (r.location || "")).toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    if (f.sort === "title") return (a.title || "").localeCompare(b.title || "");
+    if (f.sort === "newest") {
+      return (parseUkDate(b.date_posted) || 0) - (parseUkDate(a.date_posted) || 0);
+    }
+    const da = parseUkDate(a.closing_date), db = parseUkDate(b.closing_date);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  });
+
+  const meta = document.getElementById("result-meta");
+  const filtered = f.q || f.pillar || f.contract;
+  meta.innerHTML = rows.length + " of " + allRows.length + " classified vacancies" +
+    (filtered ? ' &mdash; <button type="button" id="clear-filters">clear filters</button>' : "");
+  const clearBtn = document.getElementById("clear-filters");
+  if (clearBtn) clearBtn.addEventListener("click", () => {
+    document.getElementById("search").value = "";
+    document.getElementById("filter-pillar").value = "";
+    document.getElementById("filter-contract").value = "";
+    visibleCount = PAGE_SIZE;
+    render();
+  });
+
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="state">No vacancies match these filters &mdash; try widening the search.</div></td></tr>';
+    document.getElementById("load-more").hidden = true;
+    return;
+  }
+
+  rows.slice(0, visibleCount).forEach(r => {
+    const tr = document.createElement("tr");
+
+    const tdJob = document.createElement("td");
+    tdJob.className = "job";
+    const a = document.createElement("a");
+    a.href = r.url; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = r.title || "Untitled role";
+    tdJob.appendChild(a);
+    const emp = document.createElement("span");
+    emp.className = "emp";
+    emp.textContent = r.employer || "";
+    tdJob.appendChild(emp);
+
+    const tdPillar = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = PILLAR_NAMES[r.pillar] || r.pillar;
+    tdPillar.appendChild(pill);
+    if (r.pillar_secondary && r.pillar_secondary !== "unclassified") {
+      const p2 = document.createElement("span");
+      p2.className = "pill secondary";
+      p2.textContent = "+ " + (PILLAR_NAMES[r.pillar_secondary] || r.pillar_secondary);
+      tdPillar.appendChild(p2);
+    }
+
+    const tdLoc = document.createElement("td");
+    tdLoc.textContent = r.location || "—";
+
+    const tdSalary = document.createElement("td");
+    tdSalary.className = "num";
+    tdSalary.textContent = r.salary_text || "—";
+
+    const tdClose = document.createElement("td");
+    tdClose.className = "num";
+    tdClose.textContent = r.closing_date || "—";
+
+    tr.append(tdJob, tdPillar, tdLoc, tdSalary, tdClose);
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("load-more").hidden = rows.length <= visibleCount;
+}
+
+/* ---------- Three.js hero ---------- */
+function initThree(counts) {
+  const container = document.getElementById("pillars-canvas");
+  if (!window.THREE) { document.getElementById("hero-hint").hidden = true; return; }
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0a0e12, 18, 42);
+
+  const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 5.2, 17);
+  camera.lookAt(0, 2.2, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(renderer.domElement);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  scene.add(ambient);
+  const key = new THREE.DirectionalLight(0x3dc5ff, 0.9);
+  key.position.set(6, 12, 8);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+  rim.position.set(-8, 6, -6);
+  scene.add(rim);
+
+  // Ground grid
+  const grid = new THREE.GridHelper(60, 60, 0x1d3947, 0x13212b);
+  grid.position.y = 0;
+  scene.add(grid);
+
+  // Roman-style pillars: plinth + base moulding + tapered fluted shaft
+  // + capital + abacus. Shaft height carries the data (vacancy count).
+  const maxCount = Math.max(1, ...PILLARS.map(p => counts[p.id]));
+  const group = new THREE.Group();
+  const spacing = 3.1;
+  const meshes = [];        // raycast targets (all meshes, tagged by pillar)
+  const pillarMats = {};    // pillar id -> shared material (for glow control)
+
+  PILLARS.forEach((p, i) => {
+    const shaftH = 1.4 + (counts[p.id] / maxCount) * 5.2;
+    const x = (i - 2) * spacing;
+    const pg = new THREE.Group();
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x1a2933,
+      emissive: 0x3dc5ff,
+      emissiveIntensity: 0.16,
+      metalness: 0.1,
+      roughness: 0.55,
+      flatShading: true,   // faceted shaft reads as classical fluting
+    });
+    pillarMats[p.id] = mat;
+
+    function part(geo, y) {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.y = y;
+      m.userData.pillar = p.id;
+      pg.add(m);
+      meshes.push(m);
+      return m;
+    }
+
+    let y = 0;
+    // Plinth (square base slab)
+    part(new THREE.BoxGeometry(2.1, 0.28, 2.1), y + 0.14); y += 0.28;
+    // Base moulding (wide ring)
+    part(new THREE.CylinderGeometry(0.92, 1.02, 0.22, 18), y + 0.11); y += 0.22;
+    // Shaft (tapered, 18 flat-shaded facets = fluting)
+    part(new THREE.CylinderGeometry(0.55, 0.72, shaftH, 18), y + shaftH / 2); y += shaftH;
+    // Capital (flared ring)
+    part(new THREE.CylinderGeometry(0.88, 0.6, 0.26, 18), y + 0.13); y += 0.26;
+    // Abacus (square cap slab)
+    part(new THREE.BoxGeometry(1.8, 0.2, 1.8), y + 0.1);
+
+    pg.position.x = x;
+    group.add(pg);
+  });
+  scene.add(group);
+
+  // Interaction — hover/active glow works per pillar via its shared material
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2(-2, -2);
+  let hoveredPillar = null;
+  let activePillar = "";
+  const baseGlow = {};
+  PILLARS.forEach(p => baseGlow[p.id] = 0.16);
+
+  function onPointerMove(e) {
+    const rect = container.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+  container.addEventListener("pointermove", onPointerMove);
+  container.addEventListener("click", () => {
+    if (hoveredPillar) setPillarFilter(activePillar === hoveredPillar ? "" : hoveredPillar);
+  });
+
+  function setActive(pillarId) {
+    activePillar = pillarId || "";
+    PILLARS.forEach(p => {
+      baseGlow[p.id] = (activePillar && p.id === activePillar) ? 0.55 : 0.16;
+    });
+  }
+
+  let t = 0;
+  function tick() {
+    t += 0.0035;
+    if (!reduceMotion) {
+      group.rotation.y = Math.sin(t) * 0.16;
+    }
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(meshes);
+    const hitPillar = hits.length ? hits[0].object.userData.pillar : null;
+    if (hitPillar !== hoveredPillar) {
+      container.style.cursor = hitPillar ? "pointer" : "default";
+      hoveredPillar = hitPillar;
+    }
+    PILLARS.forEach(p => {
+      const mat = pillarMats[p.id];
+      const target = (p.id === hoveredPillar) ? 0.6 : baseGlow[p.id];
+      mat.emissiveIntensity += (target - mat.emissiveIntensity) * 0.12;
+    });
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  window.addEventListener("resize", () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  });
+
+  threeApi = { setActive };
+}
+
+loadData();
+</script>
+</body>
+</html>
