@@ -384,11 +384,12 @@ if __name__ == "__main__":
     classify_listings(results)
     save_csv(results)
 
-    if save_supabase(results):
+   if save_supabase(results):
         print("\nUploaded to Supabase successfully.")
     else:
         print("\nSupabase upload skipped or failed — data is still in vacancies.csv.")
-
+        import sys
+        sys.exit(1)
     print(f"\n{len(results)} unique listings scraped across {len(KEYWORDS)} keywords.\n")
     pillar_counts: dict[str, int] = {}
     for r in results:
