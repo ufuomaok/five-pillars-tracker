@@ -343,9 +343,9 @@
   <div class="hero-inner">
     <div class="site-mark"><strong>ufuomao.com</strong> / five pillars tracker</div>
     <div class="hero-copy">
-      <h1>The NHS digital health job market, organised by <span class="accent">pillar</span>.</h1>
+      <h1>The Digital health job market, organised by the <span class="accent">five pillars</span>.</h1>
       <p class="hero-sub">
-        Scattered, inconsistently-titled digital health vacancies from public NHS
+        Inconsistently-titled digital health vacancies from public NHS
         listings, classified against the
         <a href="https://www.ufuomao.com/five-pillars-in-digital-health" target="_blank" rel="noopener">Five Pillars of Digital Health</a>
         framework — Foundation, Lifeblood, Compass, Bedside, Future — and refreshed monthly.
@@ -688,9 +688,20 @@ function initThree(counts) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x0a0e12, 18, 42);
 
-  const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 100);
-  camera.position.set(0, 5.2, 17);
-  camera.lookAt(0, 2.2, 0);
+  const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 200);
+  function frameCamera() {
+    const aspect = container.clientWidth / Math.max(1, container.clientHeight);
+    camera.aspect = aspect;
+    const vFov = 38 * Math.PI / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+    const dist = Math.max(17, 8.6 / Math.tan(hFov / 2));
+    camera.position.set(0, 5.2 + (dist - 17) * 0.12, dist);
+    camera.lookAt(0, 2.2, 0);
+    camera.updateProjectionMatrix();
+    scene.fog.near = dist + 1;
+    scene.fog.far = dist + 26;
+  }
+  frameCamera();
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -808,9 +819,8 @@ function initThree(counts) {
   }
   tick();
 
-  window.addEventListener("resize", () => {
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
+window.addEventListener("resize", () => {
+    frameCamera();
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
