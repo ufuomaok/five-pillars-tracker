@@ -1,0 +1,27 @@
+name: Supabase keep-alive
+
+on:
+  schedule:
+    # Mondays and Thursdays, 07:23 UTC — two touches a week comfortably
+    # beats the ~7-day inactivity threshold that triggers auto-pausing
+    # on Supabase's free tier.
+    - cron: "23 7 * * 1,4"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read one row from the vacancies table
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          # Uses the publishable (public, read-only) key — the same one
+          # embedded in the website, so nothing sensitive lives here.
+          curl --fail --silent --show-error \
+            "$SUPABASE_URL/rest/v1/vacancies?select=reference&limit=1" \
+            -H "apikey: sb_publishable_SPo9VQ70vFHrW10Azr3oyg_jA5uMVBO" \
+            -H "Authorization: Bearer sb_publishable_SPo9VQ70vFHrW10Azr3oyg_jA5uMVBO" \
+            > /dev/null
+          echo "Supabase pinged successfully."
