@@ -494,7 +494,20 @@ async function loadData() {
       },
     });
     if (!res.ok) throw new Error("Data request failed (" + res.status + ")");
-    allRows = await res.json();
+  allRows = await res.json();
+    // Show only listings still open: closing date today or later (or
+    // unknown), AND present in the most recent scrape — jobs withdrawn
+    // early stop being seen and drop out automatically.
+    const newestSeen = Math.max(0, ...allRows.map(r => r.last_seen ? Date.parse(r.last_seen) : 0));
+    const seenCutoff = newestSeen - 3 * 24 * 60 * 60 * 1000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    allRows = allRows.filter(r => {
+      const seen = r.last_seen ? Date.parse(r.last_seen) : 0;
+      if (seen < seenCutoff) return false;
+      const closes = parseUkDate(r.closing_date);
+      return !closes || closes >= today;
+    });
     initUI();
   } catch (err) {
     stateEl.textContent = "The vacancy data couldn't be loaded. Refresh to try again — if it keeps happening, the data service may be briefly unavailable.";
