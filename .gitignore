@@ -5,6 +5,10 @@ supabase_config.json
 vacancies.csv
 unclassified.txt
 
+# Generated report CSVs — regenerable from the database, not source
+reports/output/
+/pr_summary.md
+
 # Virtual environment
 venv/
 env/

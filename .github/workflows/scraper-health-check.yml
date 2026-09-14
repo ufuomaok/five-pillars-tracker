@@ -1,0 +1,54 @@
+name: Scraper health check
+
+on:
+  schedule:
+    - cron: "30 8 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check last successful scrape
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST_SUCCESS=$(gh run list --repo "${{ github.repository }}" --workflow weekly-scrape.yml --status success --limit 1 --json createdAt --jq '.[0].createdAt')
+          if [ -z "$LAST_SUCCESS" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "reason=No successful weekly-scrape run found at all." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LAST_EPOCH=$(date -d "$LAST_SUCCESS" +%s)
+          NOW_EPOCH=$(date +%s)
+          DAYS=$(( (NOW_EPOCH - LAST_EPOCH) / 86400 ))
+          if [ "$DAYS" -gt 10 ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "reason=Last successful weekly-scrape run was $DAYS days ago ($LAST_SUCCESS)." >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open issue if stale
+        if: steps.check.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Scraper has not run successfully in over 10 days"
+          BODY="${{ steps.check.outputs.reason }}
+
+          Check the Actions tab: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/weekly-scrape.yml"
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --search "\"$TITLE\" in:title" --state open --json number --jq '.[0].number')
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo "${{ github.repository }}" --title "$TITLE" --body "$BODY"
+          else
+            echo "Issue #$EXISTING already open, not creating a duplicate"
+          fi

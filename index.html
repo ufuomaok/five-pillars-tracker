@@ -348,7 +348,7 @@
         Inconsistently-titled digital health vacancies from public NHS
         listings, classified against the
         <a href="https://www.ufuomao.com/five-pillars-in-digital-health" target="_blank" rel="noopener">Five Pillars of Digital Health</a>
-        framework — Foundation, Lifeblood, Compass, Bedside, Future — and refreshed monthly.
+        framework — Foundation, Lifeblood, Compass, Bedside, Future — and refreshed weekly.
       </p>
       <a class="hero-cta" href="#dashboard">Browse vacancies</a>
       <p class="hero-hint" id="hero-hint">Each pillar's height is its live vacancy count &mdash; click a pillar to filter the list.</p>
@@ -423,7 +423,7 @@
       <h3>Coverage &amp; known limitations</h3>
       <p>
         Listings are drawn from the public NHS Jobs search (jobs.nhs.uk) using a
-        fixed set of digital health search terms, refreshed monthly. This will
+        fixed set of digital health search terms, refreshed weekly. This will
         not capture every digital vacancy: roles advertised only on other
         platforms, titled in unusual ways, or posted and closed between
         refreshes may be missed.
@@ -485,8 +485,19 @@ let threeApi = null;
 async function loadData() {
   const stateEl = document.getElementById("state");
   try {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const columns = [
+      "title", "employer", "location", "salary_text", "date_posted",
+      "closing_date", "contract_type", "pillar", "pillar_secondary", "url",
+      "last_seen",
+    ].join(",");
     const endpoint = SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/vacancies?select=*&pillar=neq.unclassified&limit=2000";
+      "/rest/v1/vacancies" +
+      "?select=" + columns +
+      "&pillar=neq.unclassified" +
+      "&or=(closing_date_parsed.is.null,closing_date_parsed.gte." + todayIso + ")" +
+      "&order=closing_date_parsed.asc.nullslast" +
+      "&limit=2000";
     const res = await fetch(endpoint, {
       headers: {
         apikey: SUPABASE_PUBLISHABLE_KEY,
@@ -494,20 +505,10 @@ async function loadData() {
       },
     });
     if (!res.ok) throw new Error("Data request failed (" + res.status + ")");
-  allRows = await res.json();
-    // Show only listings still open: closing date today or later (or
-    // unknown), AND present in the most recent scrape — jobs withdrawn
-    // early stop being seen and drop out automatically.
+    allRows = await res.json();
     const newestSeen = Math.max(0, ...allRows.map(r => r.last_seen ? Date.parse(r.last_seen) : 0));
     const seenCutoff = newestSeen - 3 * 24 * 60 * 60 * 1000;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    allRows = allRows.filter(r => {
-      const seen = r.last_seen ? Date.parse(r.last_seen) : 0;
-      if (seen < seenCutoff) return false;
-      const closes = parseUkDate(r.closing_date);
-      return !closes || closes >= today;
-    });
+    allRows = allRows.filter(r => (r.last_seen ? Date.parse(r.last_seen) : 0) >= seenCutoff);
     initUI();
   } catch (err) {
     stateEl.textContent = "The vacancy data couldn't be loaded. Refresh to try again — if it keeps happening, the data service may be briefly unavailable.";

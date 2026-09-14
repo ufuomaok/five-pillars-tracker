@@ -9,7 +9,7 @@ public NHS listings are classified against the
 framework — **Foundation** (infrastructure), **Lifeblood** (data),
 **Compass** (leadership & strategy), **Bedside** (clinical practice &
 informatics), **Future** (education & training) — and presented as a
-searchable, filterable public dashboard, refreshed monthly.
+searchable, filterable public dashboard, refreshed weekly.
 
 Built and maintained by [Ufuoma Okpeahior](https://ufuomao.com), creator
 of the Five Pillars framework.
@@ -55,7 +55,7 @@ displays only structured listing metadata and links every role to its
 original advert on the official NHS Jobs service, where applications are
 made. Full advert text is never copied or republished.
 
-**Respectful scraping.** Monthly refresh frequency, ~20 seconds between
+**Respectful scraping.** Weekly refresh frequency, ~20 seconds between
 requests, retry-with-backoff rather than hammering on failure, and an
 honest user agent identifying the project.
 
@@ -77,7 +77,7 @@ stored vacancy records the taxonomy version that classified it.
 
 - Source is the public NHS Jobs search (jobs.nhs.uk) only. Roles
   advertised solely on other platforms, or posted and closed between
-  monthly refreshes, will be missed.
+  weekly refreshes, will be missed.
 - Discovery uses a fixed set of search keywords; unusual role titles
   outside that vocabulary may not be found.
 - Classification is keyword-based and imperfect by design; genuinely

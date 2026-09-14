@@ -1,3 +1,4 @@
 requests>=2.31
 beautifulsoup4>=4.12
-five-pillars-taxonomy @ git+https://github.com/ufuomaok/five-pillars-taxonomy
+matplotlib>=3.8
+five-pillars-taxonomy @ git+https://github.com/ufuomaok/five-pillars-taxonomy@f7c87565db839e17f06b56d3a38d27cceca9a265

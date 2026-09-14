@@ -1,0 +1,110 @@
+name: Quarterly data pack
+
+on:
+  schedule:
+    - cron: "0 6 1 1,4,7,10 *"
+  workflow_dispatch:
+    inputs:
+      quarter:
+        description: "FY quarter to generate, e.g. 2025-Q4. Leave blank for the most recently completed quarter."
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  build-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine target quarter
+        id: quarter
+        run: |
+          python - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import sys
+          sys.path.insert(0, "reports")
+          from datetime import datetime, timezone
+          from generate_quarterly_pack import (
+              most_recently_completed_quarter, quarter_label, quarter_bounds,
+              parse_quarter_label, human_quarter_title,
+          )
+          explicit = "${{ inputs.quarter }}"
+          if explicit:
+              fy_year, q = parse_quarter_label(explicit)
+              start, _ = quarter_bounds(fy_year, q)
+              label = explicit
+          else:
+              fy_year, q, start, _ = most_recently_completed_quarter(datetime.now(timezone.utc).date())
+              label = quarter_label(fy_year, q)
+          print(f"label={label}")
+          print(f"title={human_quarter_title(q, start)}")
+          PYEOF
+
+      - name: Generate quarterly pack
+        id: generate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python reports/generate_quarterly_pack.py --quarter "${{ steps.quarter.outputs.label }}"
+
+      - name: Check bounds
+        id: bounds
+        run: |
+          python - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import json
+          m = json.load(open("reports/${{ steps.quarter.outputs.label }}/metrics.json", encoding="utf-8"))
+          bc = m["bounds_check"]
+          print("out_of_bounds=" + str(bc["out_of_bounds"]).lower())
+          print("reasons=" + ("; ".join(bc["reasons"]) if bc["reasons"] else "none"))
+          PYEOF
+
+      - name: Open pull request
+        if: success()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Add quarterly data pack"
+          title: "${{ steps.quarter.outputs.title }} data pack - review required"
+          body-path: pr_summary.md
+          assignees: ufuomaok
+          branch: quarterly-data-pack
+          delete-branch: true
+          add-paths: reports/**
+
+      - name: Open issue on failure or out-of-bounds figures
+        if: failure() || steps.bounds.outputs.out_of_bounds == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Quarterly pack FAILED - ${{ steps.quarter.outputs.title }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ job.status }}" == "failure" ]; then
+            BODY="The quarterly-data-pack workflow failed for ${{ steps.quarter.outputs.title }} (${{ steps.quarter.outputs.label }}).
+
+          Run log: $RUN_URL"
+          else
+            BODY="The quarterly-data-pack for ${{ steps.quarter.outputs.title }} (${{ steps.quarter.outputs.label }}) generated successfully but has figures outside expected bounds:
+
+          ${{ steps.bounds.outputs.reasons }}
+
+          Run log: $RUN_URL"
+          fi
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --search "\"$TITLE\" in:title" --state open --json number --jq '.[0].number')
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo "${{ github.repository }}" --title "$TITLE" --body "$BODY"
+          else
+            echo "Issue #$EXISTING already open, not creating a duplicate"
+          fi
