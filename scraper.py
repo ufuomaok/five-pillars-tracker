@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass
@@ -28,6 +29,13 @@ from enrichment import (
 COLLECTION_METHOD = "weekly"
 
 DEFAULT_KEYWORDS_FILE = "keywords.v1.json"
+
+# save_supabase() outcomes, used to give collection failures and
+# post-processing failures (which happen after listings are already
+# durably saved) distinct process exit codes.
+SAVE_OK = "ok"
+SAVE_COLLECTION_FAILED = "collection_failed"
+SAVE_POST_PROCESSING_FAILED = "post_processing_failed"
 
 
 def load_keyword_vocabulary(filename: str = DEFAULT_KEYWORDS_FILE) -> tuple[list[str], str]:
@@ -464,8 +472,9 @@ def _close_stale_open_rows(url: str, key: str, run_start_iso: str) -> bool:
         "Content-Type": "application/json",
     }
     response = requests.patch(
-        f"{url}/rest/v1/vacancies?status=eq.open&last_seen=lt.{run_start_iso}",
+        f"{url}/rest/v1/vacancies",
         headers=headers,
+        params={"status": "eq.open", "last_seen": f"lt.{run_start_iso}"},
         data=json.dumps({"status": "closed"}),
         timeout=30,
     )
@@ -480,10 +489,10 @@ def _close_stale_open_rows(url: str, key: str, run_start_iso: str) -> bool:
 
 
 def save_supabase(listings: list[VacancyListing], run_id: str, run_started_at: datetime,
-                   errors: Optional[str] = None, batch_size: int = 200) -> bool:
+                   errors: Optional[str] = None, batch_size: int = 200) -> str:
     if not listings:
         logger.warning("No listings to save — skipping database upload.")
-        return False
+        return SAVE_COLLECTION_FAILED
 
     creds = _load_supabase_credentials()
     if creds is None:
@@ -491,7 +500,7 @@ def save_supabase(listings: list[VacancyListing], run_id: str, run_started_at: d
             "No Supabase credentials found (env vars or supabase_config.json) "
             "— skipping database upload."
         )
-        return False
+        return SAVE_COLLECTION_FAILED
     url, key = creds
 
     url = url.rstrip("/")
@@ -506,7 +515,7 @@ def save_supabase(listings: list[VacancyListing], run_id: str, run_started_at: d
         existing_state = _fetch_existing_vacancy_state(url, key)
     except requests.exceptions.RequestException:
         logger.exception("Failed to fetch existing state — aborting upload")
-        return False
+        return SAVE_COLLECTION_FAILED
 
     days_since_previous_run = (
         (run_started_at.date() - previous_started_at.date()).days
@@ -524,7 +533,7 @@ def save_supabase(listings: list[VacancyListing], run_id: str, run_started_at: d
         keyword_version, taxonomy_version, days_since_previous_run, len(listings),
         rows_new, rows_updated, rows_unclassified, errors,
     ):
-        return False
+        return SAVE_COLLECTION_FAILED
 
     new_rows, existing_rows = [], []
     for listing in listings:
@@ -583,14 +592,19 @@ def save_supabase(listings: list[VacancyListing], run_id: str, run_started_at: d
                     f"Supabase upsert failed on {label} rows (status {response.status_code}): "
                     f"{response.text[:500]}"
                 )
-                return False
+                return SAVE_COLLECTION_FAILED
             total += len(batch)
             logger.info(f"Upserted {total}/{grand_total} rows to Supabase")
 
-    if not _close_stale_open_rows(url, key, db_write_time_iso):
-        return False
+    # Everything from here on runs after listings are already durably saved to
+    # `vacancies`, so a failure here is a post-processing failure, not a
+    # collection failure — it should not be reported the same way.
+    post_processing_ok = _close_stale_open_rows(url, key, db_write_time_iso)
+    post_processing_ok = _insert_snapshots(
+        url, key, listings, run_id, db_write_time_iso
+    ) and post_processing_ok
 
-    return _insert_snapshots(url, key, listings, run_id, db_write_time_iso)
+    return SAVE_OK if post_processing_ok else SAVE_POST_PROCESSING_FAILED
 
 
 def save_csv(listings: list[VacancyListing], path: str = "vacancies.csv") -> None:
@@ -617,12 +631,16 @@ if __name__ == "__main__":
     save_csv(results)
 
     errors = "; ".join(failed_keywords) if failed_keywords else None
-    if save_supabase(results, run_id=run_id, run_started_at=run_started_at, errors=errors):
+    save_result = save_supabase(results, run_id=run_id, run_started_at=run_started_at, errors=errors)
+    if save_result == SAVE_OK:
         print("\nUploaded to Supabase successfully.")
+    elif save_result == SAVE_POST_PROCESSING_FAILED:
+        print(
+            "\nUploaded to Supabase, but a post-processing step failed "
+            "(stale-row close-out or snapshot recording) — check logs above."
+        )
     else:
         print("\nSupabase upload skipped or failed — data is still in vacancies.csv.")
-        import sys
-        sys.exit(1)
 
     print(f"\n{len(results)} unique listings scraped across {len(KEYWORDS)} keywords.\n")
     pillar_counts: dict[str, int] = {}
@@ -635,3 +653,8 @@ if __name__ == "__main__":
     for r in results[:5]:
         secondary = f" (+{r.pillar_secondary})" if r.pillar_secondary else ""
         print(f"  [{r.pillar}{secondary}] {r.title} — {r.employer} — {r.salary_text}")
+
+    if save_result == SAVE_COLLECTION_FAILED:
+        sys.exit(1)
+    elif save_result == SAVE_POST_PROCESSING_FAILED:
+        sys.exit(2)

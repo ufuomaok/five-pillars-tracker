@@ -88,13 +88,17 @@ def human_quarter_title(q: int, quarter_start: date) -> str:
     return f"Q{q} {quarter_start.year}"
 
 
-def _fetch_all(url: str, key: str, path: str, order: str, page_size: int = 1000) -> list[dict]:
+def _fetch_all(url: str, key: str, path: str, order: str, page_size: int = 1000,
+                params: dict | None = None) -> list[dict]:
     headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    request_params = dict(params or {})
+    request_params["order"] = order
     rows: list[dict] = []
     offset = 0
     while True:
         headers["Range"] = f"{offset}-{offset + page_size - 1}"
-        response = requests.get(f"{url}/rest/v1/{path}&order={order}", headers=headers, timeout=30)
+        response = requests.get(f"{url}/rest/v1/{path}", headers=headers,
+                                params=request_params, timeout=30)
         response.raise_for_status()
         page = response.json()
         rows.extend(page)
@@ -604,9 +608,9 @@ def generate(label: str) -> None:
     vacancies = _fetch_all(url, key, "vacancies?select=*", order="reference")
     snapshots = _fetch_all(
         url, key,
-        f"vacancy_snapshots?select=job_reference,run_id,seen_at,status,closing_date,salary,title"
-        f"&seen_at=lte.{quarter_end.isoformat()}T23:59:59",
+        "vacancy_snapshots?select=job_reference,run_id,seen_at,status,closing_date,salary,title",
         order="seen_at",
+        params={"seen_at": f"lte.{quarter_end.isoformat()}T23:59:59"},
     )
     all_runs = _fetch_all(url, key, "scrape_runs?select=*", order="started_at")
     runs_in_quarter = [

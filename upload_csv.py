@@ -2,7 +2,7 @@ import csv
 import uuid
 from datetime import datetime, timezone
 
-from scraper import VacancyListing, save_supabase
+from scraper import SAVE_OK, VacancyListing, save_supabase
 
 FIELDS = [
     "reference", "title", "employer", "location", "salary_text",
@@ -28,7 +28,8 @@ with open("vacancies.csv", newline="", encoding="utf-8") as f:
 
 print(f"Loaded {len(listings)} listings from vacancies.csv")
 
-if save_supabase(listings, run_id=uuid.uuid4().hex, run_started_at=datetime.now(timezone.utc)):
+save_result = save_supabase(listings, run_id=uuid.uuid4().hex, run_started_at=datetime.now(timezone.utc))
+if save_result == SAVE_OK:
     print("Uploaded to Supabase successfully.")
 else:
-    print("Upload failed — see the log line above for the reason.")
+    print(f"Upload did not fully succeed ({save_result}) — see the log line above for the reason.")
