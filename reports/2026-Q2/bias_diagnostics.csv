@@ -1,0 +1,26 @@
+group,n,median_days,iqr_low,iqr_high
+overall,808,14.0,13.0,16.0
+pillar=bedside,55,14,13.0,14.0
+pillar=compass,33,14,13.5,16.0
+pillar=foundation,66,14.0,13.0,16.0
+pillar=future,22,14.0,13.0,16.25
+pillar=lifeblood,102,14.0,13.0,14.0
+pillar=unclassified,530,14.0,13.0,16.0
+band=(none),781,14,13.0,16.0
+band=Band 2,1,14,14,14
+band=Band 3,1,14,14,14
+band=Band 4,2,19.0,19.0,19.0
+band=Band 5,6,14.0,13.75,15.25
+band=Band 6,4,15.0,14.0,16.75
+band=Band 7,6,14.0,13.75,14.0
+band=Band 8a,4,13.5,10.75,24.5
+band=Band 8b,2,13.0,13.0,13.0
+band=Band 8c,1,14,14,14
+org_type=acute,480,14.0,12.0,14.0
+org_type=ambulance,12,14.0,13.25,16.75
+org_type=arms_length_body,40,14.0,14.0,15.5
+org_type=community,16,14.0,10.75,14.0
+org_type=icb,17,14,13.0,15.0
+org_type=mental_health,11,14,14.0,16.0
+org_type=other,205,14,13.0,23.0
+org_type=primary_care,27,21,18.0,25.0
