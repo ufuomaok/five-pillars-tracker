@@ -1,0 +1,72 @@
+{
+  "quarter": "2026-Q2",
+  "quarter_start": "2026-07-01",
+  "quarter_end": "2026-09-30",
+  "generated_at": "2026-10-01T12:10:04.930605+00:00",
+  "status": "headline",
+  "collection_methods_used": [
+    "weekly"
+  ],
+  "comparability_key": "v1|0.6.0|weekly",
+  "figures": {
+    "total_listings": {
+      "value": 878,
+      "comparable": true
+    },
+    "unclassified_share_pct": {
+      "value": 65.38,
+      "comparable": true
+    },
+    "pillar_count_bedside": {
+      "value": 62,
+      "comparable": true
+    },
+    "pillar_count_compass": {
+      "value": 34,
+      "comparable": true
+    },
+    "pillar_count_foundation": {
+      "value": 70,
+      "comparable": true
+    },
+    "pillar_count_unclassified": {
+      "value": 574,
+      "comparable": true
+    },
+    "pillar_count_future": {
+      "value": 25,
+      "comparable": true
+    },
+    "pillar_count_lifeblood": {
+      "value": 113,
+      "comparable": true
+    }
+  },
+  "bias_diagnostics": {
+    "overall_shorter_than_interval_share_pct": 3.75,
+    "overall_shorter_than_interval_n": 453,
+    "overall_median_advertised_duration_days": 14.0
+  },
+  "scrape_run_summary": {
+    "count": 6,
+    "mean_days_between_runs": 2.8,
+    "max_days_between_runs": 7,
+    "failed_or_skipped_runs": []
+  },
+  "qoq_delta": {
+    "previous_quarter": "2026-Q1",
+    "comparable": false,
+    "reason_if_suppressed": "No previous quarter pack found at reports/2026-Q1/ \u2014 nothing to compare against.",
+    "deltas": null
+  },
+  "bounds_check": {
+    "zero_pillars": [],
+    "total_listings_pct_change_vs_previous": null,
+    "scrape_runs_expected_min": 10,
+    "scrape_runs_below_expected": true,
+    "out_of_bounds": true,
+    "reasons": [
+      "Only 6 scrape run(s) this quarter, expected at least 10"
+    ]
+  }
+}
